@@ -1,0 +1,14 @@
+import { useState } from 'react';
+
+export default function SermonStudio(){
+  const [sermonTitle,setSermonTitle]=useState('');
+  const [sermonScripture,setSermonScripture]=useState('');
+  const [savedSermons,setSavedSermons]=useState([{title:'Love That Never Fails', scripture:'1 Cor 13:4-8', date:'Today'},{title:'Grace in the Wilderness', scripture:'Exodus 16', date:'Yesterday'}]);
+  return (
+<section className="bg-black text-white py-16 rounded-[32px] mx-3 md:mx-6">
+  <div className="max-w-[1280px] mx-auto px-6 md:px-10 grid lg:grid-cols-12 gap-10">
+    <div className="lg:col-span-7"><div className="inline-flex bg-white/10 border border-white/10 rounded-full px-3 py-1 text-[10px] font-black tracking-widest">SERMON STUDIO - PRO</div><h2 className="text-[42px] font-black mt-3 leading-[0.9]">Craft Spirit-led<br/>messages, faster.</h2><p className="text-white/60 text-[14px] mt-3 max-w-[420px]">Create, save, and preach. Drafts stay on your device.</p><div className="bg-white rounded-[24px] p-6 text-black mt-8 space-y-4"><div><label className="text-[11px] font-black tracking-widest text-black/40">SERMON TITLE</label><input value={sermonTitle} onChange={e=>setSermonTitle(e.target.value)} placeholder="e.g. Love That Never Fails" className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-bold outline-none focus:border-violet-500"/></div><div><label className="text-[11px] font-black tracking-widest text-black/40">MAIN SCRIPTURE</label><input value={sermonScripture} onChange={e=>setSermonScripture(e.target.value)} placeholder="e.g. John 3:16" className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-bold outline-none"/></div><button onClick={()=>{if(sermonTitle){setSavedSermons([{title:sermonTitle, scripture:sermonScripture||'-', date:'Just now'}, ...savedSermons]); setSermonTitle(''); setSermonScripture('');}}} className="w-full bg-black text-white rounded-full py-3 font-bold text-[14px]">Save Sermon Draft →</button></div></div>
+    <div className="lg:col-span-5"><div className="bg-white/5 border border-white/10 rounded-[24px] p-6"><div className="text-[11px] font-black tracking-widest text-white/40">MY DRAFTS - {savedSermons.length}</div><div className="mt-4 space-y-3">{savedSermons.map((s,i)=><div key={i} className="bg-white text-black rounded-2xl p-4 flex gap-3"><div className="w-10 h-10 rounded-xl bg-violet-100 grid place-items-center">📝</div><div><div className="font-bold text-[13px]">{s.title}</div><div className="text-[11px] text-black/50">{s.scripture} - {s.date}</div></div></div>)}</div><div className="mt-6 bg-gradient-to-r from-violet-600 to-pink-500 rounded-2xl p-4 text-white"><div className="font-black text-[13px]">Pro Tip</div><div className="text-[12px] text-white/80 mt-1">Use Bible OS to copy verses directly into your points. Worship Lab lets you add a song after your message.</div></div></div></div>
+  </div>
+</section>
+) }
