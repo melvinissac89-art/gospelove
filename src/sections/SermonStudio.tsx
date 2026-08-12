@@ -1,14 +1,334 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface SavedSermon {
+  id: string;
+  title: string;
+  scripture: string;
+  theme: string;
+  audience: string;
+  content: string;
+  date: string;
+  language: string;
+}
 
 export default function SermonStudio(){
   const [sermonTitle,setSermonTitle]=useState('');
-  const [sermonScripture,setSermonScripture]=useState('');
-  const [savedSermons,setSavedSermons]=useState([{title:'Love That Never Fails', scripture:'1 Cor 13:4-8', date:'Today'},{title:'Grace in the Wilderness', scripture:'Exodus 16', date:'Yesterday'}]);
+  const [sermonScripture,setSermonScripture]=useState('John 3:16');
+  const [theme,setTheme]=useState('Love');
+  const [audience,setAudience]=useState('Youth');
+  const [language,setLanguage]=useState('English');
+  const [tone,setTone]=useState('Expository');
+  const [points,setPoints]=useState('3');
+  const [duration,setDuration]=useState('30');
+  const [generating,setGenerating]=useState(false);
+  const [generatedSermon,setGeneratedSermon]=useState('');
+  const [showPreview,setShowPreview]=useState(false);
+  const [savedSermons,setSavedSermons]=useState<SavedSermon[]>([
+    {id:'1', title:'Love That Never Fails', scripture:'1 Cor 13:4-8', theme:'Love', audience:'Family', language:'English', content:'Sample sermon content...', date:'Today'},
+    {id:'2', title:'Grace in the Wilderness', scripture:'Exodus 16', theme:'Grace', audience:'Youth', language:'Malayalam', content:'Sample...', date:'Yesterday'}
+  ]);
+
+  const GEMINI_KEY = (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.VITE_GOOGLE_API_KEY || '';
+  
+  // Fetch verse preview from Bible OS
+  const [versePreview,setVersePreview]=useState('');
+  useEffect(()=>{
+    if(!sermonScripture) return;
+    const fetchVerse = async()=>{
+      try{
+        const res = await fetch(`https://bible-api.com/${sermonScripture}?translation=kjv`);
+        const data = await res.json();
+        setVersePreview(data.text?.slice(0,180) || '');
+      }catch{ setVersePreview(''); }
+    };
+    const t = setTimeout(fetchVerse, 600);
+    return ()=>clearTimeout(t);
+  },[sermonScripture]);
+
+  const generateSermon = async()=>{
+    if(!sermonTitle.trim()){ alert('Enter sermon title'); return; }
+    setGenerating(true);
+    setGeneratedSermon('');
+    
+    try{
+      if(GEMINI_KEY){
+        // REAL GEMINI API CALL - FREE TIER
+        const prompt = `You are a Spirit-led Malayalam/English sermon writer for GospeLove ministry. Create a ${duration}-minute ${tone} sermon.
+
+Title: ${sermonTitle}
+Main Scripture: ${sermonScripture}
+Theme: ${theme}
+Audience: ${audience}
+Language: ${language}
+Points: ${points}
+
+Structure:
+1. Catchy Title + Main Scripture (quote KJV)
+2. Introduction (2-3 sentences, hook for ${audience})
+3. ${points} main points - each with: Point title, Explanation, Supporting verse (KJV), Illustration/story, Application for ${audience}
+4. Conclusion + Call to action
+5. Closing Prayer
+6. If language is Malayalam, give Malayalam translation for key phrases + transliteration
+
+Tone: Warm, biblical, practical, not preachy. Use simple ${language}. Keep formatting clean with headings.
+
+Generate now.`;
+
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            contents:[{parts:[{text: prompt}]}],
+            generationConfig:{ temperature:0.8, maxOutputTokens:3000 }
+          })
+        });
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || data.error?.message || 'Failed to generate';
+        setGeneratedSermon(text);
+        setShowPreview(true);
+      } else {
+        // MOCK PREMIUM SERMON (when no API key - demo)
+        await new Promise(r=>setTimeout(r, 1800));
+        const mock = `# ${sermonTitle}
+**${sermonScripture}** - ${versePreview || 'For God so loved the world...'}
+
+**Theme:** ${theme} | **Audience:** ${audience} | **Duration:** ${duration}min | **Language:** ${language}
+
+---
+
+### INTRODUCTION
+Every ${audience.toLowerCase()} today is searching for ${theme.toLowerCase()}. In ${sermonScripture}, God shows us that...
+
+### POINT 1: The Source of ${theme}
+**Verse:** ${sermonScripture}
+God's ${theme.toLowerCase()} is not based on our performance. Like the prodigal son...
+
+**Illustration:** A young man in Kerala...
+
+**Application:** For you as ${audience}, this means...
+
+### POINT 2: The Power of ${theme}
+**Verse:** Romans 8:28
+When we walk in ${theme.toLowerCase()}, even pain has purpose.
+
+### POINT 3: Living ${theme} Daily
+**Verse:** 1 John 4:19
+Practical steps:
+1. Start your day with...
+2. Speak ${theme.toLowerCase()} over your family
+3. Forgive quickly
+
+---
+
+### CONCLUSION & CALL
+God is calling you today to...
+
+### CLOSING PRAYER
+Father, thank you for ${sermonScripture}. Help this ${audience} to live...
+
+${language==='Malayalam' ? '\n---\n**മലയാളം:** ദൈവത്തിന്റെ സ്നേഹം ഒരിക്കലും മാറില്ല. (Transliteration: Daivathinte sneham orikkalum maarilla)' : ''}
+
+---
+*Generated by GospeLove Sermon Studio PRO + Gemini Flash (Free Tier)*`;
+        setGeneratedSermon(mock);
+        setShowPreview(true);
+      }
+    }catch(e:any){
+      setGeneratedSermon(`Error: ${e.message}. Add VITE_GEMINI_API_KEY in .env for real AI.\n\nGet free key at: https://aistudio.google.com/app/apikey`);
+    }
+    setGenerating(false);
+  };
+
+  const saveCurrent = ()=>{
+    if(!generatedSermon) { 
+      if(sermonTitle){ setSavedSermons([{id:Date.now().toString(), title:sermonTitle, scripture:sermonScripture||'-', theme, audience, language, content:'Draft - no AI content yet', date:'Just now'}, ...savedSermons]); setSermonTitle(''); } 
+      return;
+    }
+    const newSermon: SavedSermon = {
+      id: Date.now().toString(),
+      title: sermonTitle,
+      scripture: sermonScripture,
+      theme,
+      audience,
+      language,
+      content: generatedSermon,
+      date: 'Just now'
+    };
+    setSavedSermons([newSermon, ...savedSermons]);
+    setSermonTitle(''); setGeneratedSermon(''); setShowPreview(false);
+  };
+
+  const copySermon = ()=>{
+    navigator.clipboard.writeText(generatedSermon);
+    alert('Sermon copied!');
+  };
+
   return (
-<section className="bg-black text-white py-16 rounded-[32px] mx-3 md:mx-6">
-  <div className="max-w-[1280px] mx-auto px-6 md:px-10 grid lg:grid-cols-12 gap-10">
-    <div className="lg:col-span-7"><div className="inline-flex bg-white/10 border border-white/10 rounded-full px-3 py-1 text-[10px] font-black tracking-widest">SERMON STUDIO - PRO</div><h2 className="text-[42px] font-black mt-3 leading-[0.9]">Craft Spirit-led<br/>messages, faster.</h2><p className="text-white/60 text-[14px] mt-3 max-w-[420px]">Create, save, and preach. Drafts stay on your device.</p><div className="bg-white rounded-[24px] p-6 text-black mt-8 space-y-4"><div><label className="text-[11px] font-black tracking-widest text-black/40">SERMON TITLE</label><input value={sermonTitle} onChange={e=>setSermonTitle(e.target.value)} placeholder="e.g. Love That Never Fails" className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-bold outline-none focus:border-violet-500"/></div><div><label className="text-[11px] font-black tracking-widest text-black/40">MAIN SCRIPTURE</label><input value={sermonScripture} onChange={e=>setSermonScripture(e.target.value)} placeholder="e.g. John 3:16" className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-xl px-4 py-3 text-[14px] font-bold outline-none"/></div><button onClick={()=>{if(sermonTitle){setSavedSermons([{title:sermonTitle, scripture:sermonScripture||'-', date:'Just now'}, ...savedSermons]); setSermonTitle(''); setSermonScripture('');}}} className="w-full bg-black text-white rounded-full py-3 font-bold text-[14px]">Save Sermon Draft →</button></div></div>
-    <div className="lg:col-span-5"><div className="bg-white/5 border border-white/10 rounded-[24px] p-6"><div className="text-[11px] font-black tracking-widest text-white/40">MY DRAFTS - {savedSermons.length}</div><div className="mt-4 space-y-3">{savedSermons.map((s,i)=><div key={i} className="bg-white text-black rounded-2xl p-4 flex gap-3"><div className="w-10 h-10 rounded-xl bg-violet-100 grid place-items-center">📝</div><div><div className="font-bold text-[13px]">{s.title}</div><div className="text-[11px] text-black/50">{s.scripture} - {s.date}</div></div></div>)}</div><div className="mt-6 bg-gradient-to-r from-violet-600 to-pink-500 rounded-2xl p-4 text-white"><div className="font-black text-[13px]">Pro Tip</div><div className="text-[12px] text-white/80 mt-1">Use Bible OS to copy verses directly into your points. Worship Lab lets you add a song after your message.</div></div></div></div>
+<section className="bg-[#080808] text-white py-16 rounded-[40px] mx-3 md:mx-6 relative overflow-hidden border border-white/[0.06]">
+  {/* Premium background effects */}
+  <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_30%_20%,rgba(120,80,255,0.15),transparent),radial-gradient(50%_50%_at_80%_80%,rgba(255,80,180,0.12),transparent)]" />
+  <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+  
+  <div className="relative max-w-[1360px] mx-auto px-6 md:px-10 grid lg:grid-cols-12 gap-8 items-start">
+    
+    {/* LEFT - PRO STUDIO FORM */}
+    <div className="lg:col-span-7 space-y-6">
+      <div>
+        <div className="inline-flex items-center gap-2 bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] rounded-full px-3.5 py-1.5 text-[10px] font-black tracking-[0.14em]">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          SERMON STUDIO • PRO • GEMINI POWERED
+          {!GEMINI_KEY && <span className="ml-2 bg-amber-500/20 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded-full text-[9px]">DEMO MODE</span>}
+        </div>
+        <h2 className="text-[38px] md:text-[52px] font-black mt-4 leading-[0.88] tracking-[-0.03em]">Craft Spirit-led<br/><span className="bg-gradient-to-r from-violet-300 to-fuchsia-300 bg-clip-text text-transparent">messages, faster.</span></h2>
+        <p className="text-white/50 text-[14px] mt-3 max-w-[480px] leading-relaxed">AI-powered sermon builder with Bible OS, Malayalam support & worship integration. Drafts stay on your device. Free tier: 1,500 sermons/day.</p>
+      </div>
+
+      <div className="bg-white/[0.98] rounded-[28px] p-6 md:p-7 text-black shadow-[0_24px_80px_rgba(0,0,0,0.4)] border border-white/20 relative overflow-hidden">
+        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-black/10 to-transparent" />
+        
+        {/* Title + Scripture Row */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-black tracking-[0.14em] text-black/40 flex justify-between">SERMON TITLE <span className="text-red-500">*</span></label>
+            <input value={sermonTitle} onChange={e=>setSermonTitle(e.target.value)} placeholder="e.g. God Holds You Close Forever" className="w-full mt-1.5 bg-[#FFFBF7] border border-black/[0.06] rounded-[14px] px-4 py-3 text-[14px] font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black tracking-[0.14em] text-black/40">MAIN SCRIPTURE</label>
+            <input value={sermonScripture} onChange={e=>setSermonScripture(e.target.value)} placeholder="e.g. Isaiah 41:10" className="w-full mt-1.5 bg-[#FFFBF7] border border-black/[0.06] rounded-[14px] px-4 py-3 text-[14px] font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition" />
+            {versePreview && <div className="mt-2 text-[11px] text-black/50 bg-black/[0.03] rounded-lg px-3 py-2 line-clamp-2">📖 {versePreview}...</div>}
+          </div>
+        </div>
+
+        {/* Pro Controls Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <div>
+            <label className="text-[9px] font-black tracking-widest text-black/40">THEME</label>
+            <select value={theme} onChange={e=>setTheme(e.target.value)} className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-full px-3 py-2.5 text-[12px] font-bold outline-none">
+              {['Love','Faith','Hope','Grace','Forgiveness','Purpose','Healing','Bible'].map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[9px] font-black tracking-widest text-black/40">AUDIENCE</label>
+            <select value={audience} onChange={e=>setAudience(e.target.value)} className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-full px-3 py-2.5 text-[12px] font-bold outline-none">
+              {['Youth','Family','New Believers','Leaders','General'].map(a=><option key={a}>{a}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[9px] font-black tracking-widest text-black/40">LANGUAGE</label>
+            <select value={language} onChange={e=>setLanguage(e.target.value)} className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-full px-3 py-2.5 text-[12px] font-bold outline-none">
+              {['English','Malayalam','Manglish'].map(l=><option key={l}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[9px] font-black tracking-widest text-black/40">POINTS</label>
+            <select value={points} onChange={e=>setPoints(e.target.value)} className="w-full mt-1 bg-[#FFFBF7] border border-black/5 rounded-full px-3 py-2.5 text-[12px] font-bold outline-none">
+              <option value="2">2 Points</option><option value="3">3 Points</option><option value="4">4 Points</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label className="text-[9px] font-black tracking-widest text-black/40">TONE</label>
+            <select value={tone} onChange={e=>setTone(e.target.value)} className="w-full mt-1 bg-black text-white rounded-full px-3 py-2.5 text-[12px] font-bold outline-none">
+              {['Expository','Topical','Evangelistic','Devotional'].map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[9px] font-black tracking-widest text-black/40">DURATION</label>
+            <select value={duration} onChange={e=>setDuration(e.target.value)} className="w-full mt-1 bg-black text-white rounded-full px-3 py-2.5 text-[12px] font-bold outline-none">
+              <option value="20">20 min</option><option value="30">30 min</option><option value="45">45 min</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Generate Button */}
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          <button onClick={generateSermon} disabled={generating} className="col-span-2 bg-black text-white rounded-full py-3.5 font-black text-[14px] flex items-center justify-center gap-2 hover:bg-black/90 transition disabled:opacity-50">
+            {generating ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generating with Gemini Flash...</> : <><span>✦</span> Generate Sermon with AI</>}
+          </button>
+          <button onClick={saveCurrent} className="bg-[#FFFBF7] border border-black/10 text-black rounded-full py-3.5 font-bold text-[13px] hover:bg-black/5 transition">Save Draft →</button>
+        </div>
+
+        {!GEMINI_KEY && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-[14px] px-4 py-3 text-[11px] text-amber-800">
+            <b>Demo Mode:</b> Add free Gemini key in <code className="bg-black text-white px-1.5 py-0.5 rounded text-[10px]">.env</code> → <code>VITE_GEMINI_API_KEY=your_key</code> from <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline font-bold">aistudio.google.com</a> (Free: 1,500/day). Currently showing mock premium output.
+          </div>
+        )}
+
+        {/* Generated Preview */}
+        {showPreview && generatedSermon && (
+          <div className="mt-6 border-t border-black/10 pt-6">
+            <div className="flex justify-between items-center mb-3">
+              <div className="text-[10px] font-black tracking-widest text-black/40">GENERATED SERMON • {theme} • {language}</div>
+              <div className="flex gap-2">
+                <button onClick={copySermon} className="text-[11px] font-bold bg-black/5 hover:bg-black/10 rounded-full px-3 py-1">Copy</button>
+                <button onClick={()=>setShowPreview(false)} className="text-[11px] font-bold bg-black text-white rounded-full px-3 py-1">Close</button>
+              </div>
+            </div>
+            <div className="bg-[#FFFBF7] border border-black/5 rounded-[16px] p-5 max-h-[420px] overflow-y-auto whitespace-pre-wrap text-[13.5px] leading-[1.7] font-[Georgia,serif]">{generatedSermon}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2 text-[11px] text-white/40">
+        <span className="bg-white/10 border border-white/10 rounded-full px-3 py-1">✦ Free: 1,500/day</span>
+        <span className="bg-white/10 border border-white/10 rounded-full px-3 py-1">🌐 Malayalam + English</span>
+        <span className="bg-white/10 border border-white/10 rounded-full px-3 py-1">📖 Bible OS linked</span>
+      </div>
+    </div>
+
+    {/* RIGHT - DRAFTS + PRO FEATURES */}
+    <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-8">
+      <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-[28px] p-6">
+        <div className="flex justify-between items-center">
+          <div className="text-[11px] font-black tracking-[0.14em] text-white/40">MY DRAFTS • {savedSermons.length}</div>
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        </div>
+        
+        <div className="mt-5 space-y-3 max-h-[360px] overflow-y-auto pr-1">
+          {savedSermons.map((s)=>(
+            <div key={s.id} className="bg-white text-black rounded-[18px] p-4 flex gap-3 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition group cursor-pointer" onClick={()=>{setGeneratedSermon(s.content); setShowPreview(true); setSermonTitle(s.title); setSermonScripture(s.scripture);}}>
+              <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white grid place-items-center font-black text-[12px] shrink-0">{s.theme[0]}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-[13.5px] leading-tight truncate">{s.title}</div>
+                <div className="text-[11px] text-black/50 mt-0.5 flex gap-2"><span>{s.scripture}</span><span className="bg-black/5 rounded-full px-1.5">{s.theme}</span><span>{s.language}</span></div>
+              </div>
+              <div className="text-[10px] text-black/30 self-center group-hover:text-black">{s.date}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-500 rounded-[20px] p-[1px]">
+          <div className="bg-[#0f0f0f] rounded-[19px] p-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-white text-black grid place-items-center font-black text-[12px]">✦</div>
+              <div className="font-black text-[13px] text-white">Pro Workflow</div>
+              <span className="ml-auto text-[9px] bg-white/10 border border-white/10 rounded-full px-2 py-0.5 text-white/60">GEMINI FLASH</span>
+            </div>
+            <div className="text-[12px] text-white/70 mt-2 leading-relaxed">1. Pick scripture in Bible OS → 2. Generate with Sermon Studio → 3. Add worship song from Malayalam library → 4. Preach.</div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[
+                {k:'1.5k', l:'Free sermons/day'},
+                {k:'3-lang', l:'En/Ml/Manglish'},
+                {k:'∞', l:'Drafts local'}
+              ].map(f=>(
+                <div key={f.k} className="bg-white/[0.06] border border-white/[0.08] rounded-[12px] px-2 py-2 text-center">
+                  <div className="font-black text-white text-[12px]">{f.k}</div><div className="text-[9px] text-white/50">{f.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[20px] p-4 text-black flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-black text-white grid place-items-center">🎵</div>
+        <div><div className="font-bold text-[12px]">Worship Lab Linked</div><div className="text-[11px] text-black/50">Add Malayalam worship after sermon auto</div></div>
+        <button className="ml-auto bg-black text-white rounded-full px-3 py-1.5 text-[11px] font-bold">Open →</button>
+      </div>
+    </div>
   </div>
 </section>
-) }
+);
+}

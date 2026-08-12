@@ -1,6 +1,51 @@
-﻿export const sermons = [
-  {cat:'LOVE', time:'42:18', title:'When Love Comes Home', pastor:'Ps. Thomas John', date:'Dec 08, 2024', grad:'from-amber-300 via-orange-400 to-amber-500'},
-  {cat:'FAITH', time:'38:05', title:'Faith That Moves Mountains', pastor:'Ps. Sarah Mathew', date:'Dec 01, 2024', grad:'from-violet-300 via-purple-400 to-fuchsia-500'},
-  {cat:'HOPE', time:'45:12', title:'Anchored in Hope', pastor:'Ps. Thomas John', date:'Nov 24, 2024', grad:'from-teal-300 via-emerald-400 to-teal-500'},
-  {cat:'LOVE', time:'52:30', title:'The Heart of Worship', pastor:'Worship Team', date:'Nov 17, 2024', grad:'from-pink-300 via-rose-400 to-pink-500'},
-]
+﻿// src/content/sermons.ts - REAL YOUTUBE SHORTS
+export const sermons = [
+  {
+    id: "PTmeWuGY7Oc",
+    title: "GOD HOLDS YOU CLOSE FOREVER",
+    cat: "Love",
+    time: "0:54",
+    pastor: "GospeLove",
+    date: "2024",
+    youtubeId: "PTmeWuGY7Oc",
+    link: "https://youtube.com/shorts/PTmeWuGY7Oc",
+    grad: "from-orange-400 to-yellow-300",
+    thumbnail: "https://img.youtube.com/vi/PTmeWuGY7Oc/hqdefault.jpg"
+  },
+  {
+    id: "WaXxchIcjqc",
+    title: "GOD WILL FIGHT FOR YOU",
+    cat: "Faith",
+    time: "0:58",
+    pastor: "GospeLove",
+    date: "2024",
+    youtubeId: "WaXxchIcjqc",
+    link: "https://youtube.com/shorts/WaXxchIcjqc",
+    grad: "from-violet-400 to-purple-500",
+    thumbnail: "https://img.youtube.com/vi/WaXxchIcjqc/hqdefault.jpg"
+  },
+  {
+    id: "d7SU6wXklUM",
+    title: "WHEN GOD STEPS IN",
+    cat: "Hope",
+    time: "0:47",
+    pastor: "GospeLove",
+    date: "2024",
+    youtubeId: "d7SU6wXklUM",
+    link: "https://youtube.com/shorts/d7SU6wXklUM",
+    grad: "from-emerald-400 to-teal-500",
+    thumbnail: "https://img.youtube.com/vi/d7SU6wXklUM/hqdefault.jpg"
+  },
+  {
+    id: "qlN_DtyU2kw",
+    title: "What is BIBLE? Part A.1",
+    cat: "Bible",
+    time: "1:32",
+    pastor: "GospeLove",
+    date: "2024",
+    youtubeId: "qlN_DtyU2kw",
+    link: "https://youtube.com/shorts/qlN_DtyU2kw",
+    grad: "from-pink-400 to-rose-400",
+    thumbnail: "https://img.youtube.com/vi/qlN_DtyU2kw/hqdefault.jpg"
+  }
+];
